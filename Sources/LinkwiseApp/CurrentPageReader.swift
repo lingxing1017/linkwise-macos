@@ -17,21 +17,20 @@ struct CurrentPageReader {
 
         switch bundleID {
         case "com.apple.Safari":
-            return try readWithAppleScript(applicationName: "Safari", urlProperty: "URL of current tab of front window", titleProperty: "name of current tab of front window")
-        case "com.google.Chrome":
-            return try readWithAppleScript(applicationName: "Google Chrome", urlProperty: "URL of active tab of front window", titleProperty: "title of active tab of front window")
-        case "com.microsoft.edgemac":
-            return try readWithAppleScript(applicationName: "Microsoft Edge", urlProperty: "URL of active tab of front window", titleProperty: "title of active tab of front window")
-        case "com.brave.Browser":
-            return try readWithAppleScript(applicationName: "Brave Browser", urlProperty: "URL of active tab of front window", titleProperty: "title of active tab of front window")
+            return try readWithAppleScript(bundleIdentifier: bundleID, urlProperty: "URL of current tab of front window", titleProperty: "name of current tab of front window")
+        case "com.google.Chrome",
+             "com.microsoft.edgemac",
+             "com.brave.Browser",
+             "net.imput.helium":
+            return try readWithAppleScript(bundleIdentifier: bundleID, urlProperty: "URL of active tab of front window", titleProperty: "title of active tab of front window")
         default:
             throw LinkwiseError.unsupportedBrowser
         }
     }
 
-    private func readWithAppleScript(applicationName: String, urlProperty: String, titleProperty: String) throws -> CurrentPage {
+    private func readWithAppleScript(bundleIdentifier: String, urlProperty: String, titleProperty: String) throws -> CurrentPage {
         let script = """
-        tell application "\(applicationName)"
+        tell application id "\(bundleIdentifier)"
             set pageUrl to \(urlProperty)
             set pageTitle to \(titleProperty)
             return pageTitle & linefeed & pageUrl

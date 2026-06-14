@@ -32,7 +32,7 @@ public enum LinkwiseError: LocalizedError, Equatable, Sendable {
         case let .cache(message):
             return "本地缓存不可用：\(message)"
         case .unsupportedBrowser:
-            return "当前应用暂不支持读取页面，请切换到 Safari、Chrome、Edge 或 Brave 后重试。"
+            return "当前应用暂不支持读取页面，请切换到 Safari、Chrome、Edge、Brave 或 Helium 后重试。"
         case let .permissionDenied(message):
             return message
         case let .noCurrentPage(message):
@@ -40,4 +40,3 @@ public enum LinkwiseError: LocalizedError, Equatable, Sendable {
         }
     }
 }
-
