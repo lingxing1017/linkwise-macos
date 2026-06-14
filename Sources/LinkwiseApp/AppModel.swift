@@ -6,6 +6,7 @@ import LinkwiseCore
 final class AppModel {
     let settingsStore: SettingsStore
     let cache: LocalCache
+    private let customBrowserStore = CustomBrowserStore()
     private(set) var bookmarks: [Bookmark] = []
     private(set) var lastSyncAt: Date?
     private(set) var lastError: String?
@@ -15,7 +16,7 @@ final class AppModel {
     init(settingsStore: SettingsStore, cache: LocalCache) {
         self.settingsStore = settingsStore
         self.cache = cache
-        self.browsers = BrowserDetector().installedBrowsers()
+        self.browsers = BrowserDetector(customBrowsers: customBrowserStore.load()).installedBrowsers()
     }
 
     var serverURL: String {
@@ -93,12 +94,23 @@ final class AppModel {
     }
 
     func rescanBrowsers() {
-        browsers = BrowserDetector().installedBrowsers()
+        browsers = BrowserDetector(customBrowsers: customBrowserStore.load()).installedBrowsers()
         notifyChange()
+    }
+
+    func addCustomBrowser(appURL: URL) -> Bool {
+        guard let browser = BrowserDetector().customBrowser(from: appURL) else {
+            AlertPresenter.showMessage("无法添加浏览器", informativeText: "请选择支持 http 或 https 链接的 macOS App。")
+            return false
+        }
+
+        customBrowserStore.add(browser)
+        browsers = BrowserDetector(customBrowsers: customBrowserStore.load()).installedBrowsers()
+        notifyChange()
+        return true
     }
 
     func notifyChange() {
         onChange?()
     }
 }
-

@@ -59,9 +59,11 @@ final class SettingsWindowController: NSWindowController {
         let testButton = NSButton(title: "连接测试", target: self, action: #selector(testConnection))
         let saveButton = NSButton(title: "保存", target: self, action: #selector(saveAndClose))
         let rescanButton = NSButton(title: "重新扫描浏览器", target: self, action: #selector(rescanBrowsers))
+        let addBrowserButton = NSButton(title: "添加浏览器...", target: self, action: #selector(addBrowser))
 
         buttonRow.addArrangedSubview(testButton)
         buttonRow.addArrangedSubview(rescanButton)
+        buttonRow.addArrangedSubview(addBrowserButton)
         buttonRow.addArrangedSubview(NSView())
         buttonRow.addArrangedSubview(saveButton)
         stack.addArrangedSubview(buttonRow)
@@ -124,9 +126,28 @@ final class SettingsWindowController: NSWindowController {
         reloadBrowserPopup()
     }
 
+    @objc private func addBrowser() {
+        let panel = NSOpenPanel()
+        panel.title = "选择浏览器"
+        panel.prompt = "添加"
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [.applicationBundle]
+        panel.directoryURL = URL(fileURLWithPath: "/Applications", isDirectory: true)
+
+        guard panel.runModal() == .OK,
+              let appURL = panel.url,
+              model.addCustomBrowser(appURL: appURL)
+        else {
+            return
+        }
+
+        reloadBrowserPopup()
+    }
+
     @objc private func saveAndClose() {
         saveValues()
         close()
     }
 }
-

@@ -28,7 +28,10 @@ let package = Package(
         .testTarget(
             name: "LinkwiseCoreTests",
             dependencies: ["LinkwiseCore"]
+        ),
+        .testTarget(
+            name: "LinkwiseAppTests",
+            dependencies: ["LinkwiseApp"]
         )
     ]
 )
-
