@@ -7,6 +7,12 @@ final class MenuBarController {
     private let model: AppModel
     private let onOpenSettings: () -> Void
     private let onSaveCurrentPage: () -> Void
+    private lazy var folderImage: NSImage? = {
+        let image = NSImage(systemSymbolName: "folder", accessibilityDescription: "目录")
+        image?.isTemplate = true
+        image?.size = NSSize(width: 16, height: 16)
+        return image
+    }()
 
     init(model: AppModel, onOpenSettings: @escaping () -> Void, onSaveCurrentPage: @escaping () -> Void) {
         self.model = model
@@ -76,6 +82,7 @@ final class MenuBarController {
 
         if !tree.bookmarks.isEmpty {
             let uncategorized = NSMenuItem(title: "未分类", action: nil, keyEquivalent: "")
+            uncategorized.image = folderImage
             let submenu = NSMenu()
             tree.bookmarks.forEach { submenu.addItem(bookmarkMenuItem($0)) }
             uncategorized.submenu = submenu
@@ -89,6 +96,7 @@ final class MenuBarController {
 
     private func folderMenuItem(_ folder: FolderNode) -> NSMenuItem {
         let item = NSMenuItem(title: folder.name, action: nil, keyEquivalent: "")
+        item.image = folderImage
         let submenu = NSMenu()
 
         for child in folder.folders {
@@ -208,4 +216,3 @@ private final class BookmarkBrowserAction {
         self.browser = browser
     }
 }
-
