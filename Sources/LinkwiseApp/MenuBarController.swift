@@ -35,8 +35,8 @@ final class MenuBarController {
         let menu = NSMenu()
         menu.autoenablesItems = false
 
-        let titleItem = NSMenuItem(title: "拾链 Linkwise", action: nil, keyEquivalent: "")
-        titleItem.isEnabled = false
+        let titleItem = actionItem("拾链 Linkwise", selector: #selector(openWebManager), key: "w")
+        titleItem.image = NSImage(systemSymbolName: "link", accessibilityDescription: "打开 Web 管理界面")
         menu.addItem(titleItem)
 
         if let lastSyncAt = model.lastSyncAt {
@@ -62,7 +62,6 @@ final class MenuBarController {
         addBookmarkItems(to: menu)
 
         menu.addItem(.separator())
-        menu.addItem(actionItem("打开 Web 管理界面", selector: #selector(openWebManager), key: "w"))
         menu.addItem(actionItem("设置...", selector: #selector(openSettings), key: ","))
         menu.addItem(.separator())
         menu.addItem(actionItem("退出", selector: #selector(quit), key: "q"))
