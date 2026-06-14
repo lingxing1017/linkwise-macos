@@ -8,8 +8,8 @@ struct CurrentPage: Equatable, Sendable {
 }
 
 struct CurrentPageReader {
-    func readCurrentPage() throws -> CurrentPage {
-        guard let app = NSWorkspace.shared.frontmostApplication,
+    func readCurrentPage(from preferredApplication: NSRunningApplication? = nil) throws -> CurrentPage {
+        guard let app = preferredApplication ?? NSWorkspace.shared.frontmostApplication,
               let bundleID = app.bundleIdentifier
         else {
             throw LinkwiseError.unsupportedBrowser

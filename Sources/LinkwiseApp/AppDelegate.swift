@@ -9,8 +9,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuController: MenuBarController?
     private var settingsWindowController: SettingsWindowController?
     private var saveWindowController: SaveBookmarkWindowController?
+    private var lastActiveApplication: NSRunningApplication?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        updateLastActiveApplication(NSWorkspace.shared.frontmostApplication)
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(activeApplicationDidChange(_:)),
+            name: NSWorkspace.didActivateApplicationNotification,
+            object: nil
+        )
+
         let model = AppModel(settingsStore: settingsStore, cache: cache)
         appModel = model
 
@@ -46,7 +55,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         Task {
             do {
-                let page = try CurrentPageReader().readCurrentPage()
+                let page = try CurrentPageReader().readCurrentPage(from: lastActiveApplication)
                 NSApp.activate(ignoringOtherApps: true)
                 saveWindowController = SaveBookmarkWindowController(model: appModel, page: page)
                 saveWindowController?.showWindow(nil)
@@ -56,5 +65,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
     }
-}
 
+    @objc private func activeApplicationDidChange(_ notification: Notification) {
+        let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+        updateLastActiveApplication(app)
+    }
+
+    private func updateLastActiveApplication(_ app: NSRunningApplication?) {
+        guard let app,
+              app.processIdentifier != NSRunningApplication.current.processIdentifier,
+              app.activationPolicy == .regular
+        else {
+            return
+        }
+
+        lastActiveApplication = app
+    }
+}
