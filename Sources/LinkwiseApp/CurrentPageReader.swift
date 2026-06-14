@@ -5,6 +5,13 @@ import LinkwiseCore
 struct CurrentPage: Equatable, Sendable {
     let title: String
     let url: String
+    let folder: String
+
+    init(title: String, url: String, folder: String = "") {
+        self.title = title
+        self.url = url
+        self.folder = folder
+    }
 }
 
 struct CurrentPageReader {
@@ -24,8 +31,40 @@ struct CurrentPageReader {
              "net.imput.helium":
             return try readWithAppleScript(bundleIdentifier: bundleID, urlProperty: "URL of active tab of front window", titleProperty: "title of active tab of front window")
         default:
-            throw LinkwiseError.unsupportedBrowser
+            return try readWithSupportedScriptShape(bundleIdentifier: bundleID)
         }
+    }
+
+    private func readWithSupportedScriptShape(bundleIdentifier: String) throws -> CurrentPage {
+        let scriptShapes = [
+            ("URL of active tab of front window", "title of active tab of front window"),
+            ("URL of current tab of front window", "name of current tab of front window")
+        ]
+        var lastError: Error?
+
+        for shape in scriptShapes {
+            do {
+                return try readWithAppleScript(
+                    bundleIdentifier: bundleIdentifier,
+                    urlProperty: shape.0,
+                    titleProperty: shape.1
+                )
+            } catch let error as LinkwiseError {
+                if error.isPermissionDenied {
+                    throw error
+                }
+
+                lastError = error
+            } catch {
+                lastError = error
+            }
+        }
+
+        if let lastError {
+            throw lastError
+        }
+
+        throw LinkwiseError.unsupportedBrowser
     }
 
     private func readWithAppleScript(bundleIdentifier: String, urlProperty: String, titleProperty: String) throws -> CurrentPage {
@@ -72,6 +111,23 @@ struct CurrentPageReader {
     }
 
     private func isSavableURL(_ value: String) -> Bool {
+        CurrentPage.isSavableURL(value)
+    }
+}
+
+extension CurrentPage {
+    static func clipboardFallback(from pasteboard: NSPasteboard = .general) -> CurrentPage? {
+        guard let value = pasteboard.string(forType: .string)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            isSavableURL(value)
+        else {
+            return nil
+        }
+
+        return CurrentPage(title: "", url: value)
+    }
+
+    static func isSavableURL(_ value: String) -> Bool {
         guard let url = URL(string: value),
               let scheme = url.scheme?.lowercased(),
               ["http", "https"].contains(scheme),
@@ -81,5 +137,15 @@ struct CurrentPageReader {
         }
 
         return true
+    }
+}
+
+private extension LinkwiseError {
+    var isPermissionDenied: Bool {
+        if case .permissionDenied = self {
+            return true
+        }
+
+        return false
     }
 }

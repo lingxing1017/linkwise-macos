@@ -23,6 +23,7 @@ final class SaveBookmarkWindowController: NSWindowController {
         buildUI()
         titleField.stringValue = page.title
         urlField.stringValue = page.url
+        folderField.stringValue = page.folder
     }
 
     required init?(coder: NSCoder) {
@@ -93,4 +94,3 @@ final class SaveBookmarkWindowController: NSWindowController {
         }
     }
 }
-

@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindowController: SettingsWindowController?
     private var saveWindowController: SaveBookmarkWindowController?
     private var lastActiveApplication: NSRunningApplication?
+    private var pendingSavePages: [CurrentPage] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         updateLastActiveApplication(NSWorkspace.shared.frontmostApplication)
@@ -36,6 +37,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if settingsStore.refreshOnLaunch {
             Task { await model.refreshBookmarks(showSuccess: false) }
         }
+
+        showPendingSavePages()
     }
 
     private func openSettings() {
@@ -56,14 +59,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task {
             do {
                 let page = try CurrentPageReader().readCurrentPage(from: lastActiveApplication)
-                NSApp.activate(ignoringOtherApps: true)
-                saveWindowController = SaveBookmarkWindowController(model: appModel, page: page)
-                saveWindowController?.showWindow(nil)
-                saveWindowController?.window?.makeKeyAndOrderFront(nil)
+                showSaveWindow(page: page, model: appModel)
+            } catch {
+                showSaveWindow(page: CurrentPage.clipboardFallback() ?? CurrentPage(title: "", url: ""), model: appModel)
+            }
+        }
+    }
+
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls {
+            do {
+                let page = try LinkwiseURLScheme.savePage(from: url)
+
+                if let appModel {
+                    showSaveWindow(page: page, model: appModel)
+                } else {
+                    pendingSavePages.append(page)
+                }
             } catch {
                 AlertPresenter.show(error)
             }
         }
+    }
+
+    private func showPendingSavePages() {
+        guard let appModel else { return }
+
+        for page in pendingSavePages {
+            showSaveWindow(page: page, model: appModel)
+        }
+
+        pendingSavePages.removeAll()
+    }
+
+    private func showSaveWindow(page: CurrentPage, model: AppModel) {
+        NSApp.activate(ignoringOtherApps: true)
+        saveWindowController = SaveBookmarkWindowController(model: model, page: page)
+        saveWindowController?.showWindow(nil)
+        saveWindowController?.window?.makeKeyAndOrderFront(nil)
     }
 
     @objc private func activeApplicationDidChange(_ notification: Notification) {
