@@ -35,7 +35,7 @@ final class MenuBarController {
         let menu = NSMenu()
         menu.autoenablesItems = false
 
-        let titleItem = actionItem("拾链 Linkwise", selector: #selector(openWebManager), key: "w")
+        let titleItem = actionItem("拾链 Linkwise", selector: #selector(openWebManager))
         titleItem.image = NSImage(systemSymbolName: "link", accessibilityDescription: "打开 Web 管理界面")
         menu.addItem(titleItem)
 
