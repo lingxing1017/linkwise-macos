@@ -7,6 +7,7 @@ final class MenuBarController {
     private let model: AppModel
     private let onOpenSettings: () -> Void
     private let onSaveCurrentPage: () -> Void
+    private let menuMinimumWidth: CGFloat = 220
     private lazy var folderImage: NSImage? = {
         let image = NSImage(systemSymbolName: "folder", accessibilityDescription: "目录")
         image?.isTemplate = true
@@ -32,7 +33,7 @@ final class MenuBarController {
     }
 
     func rebuildMenu() {
-        let menu = NSMenu()
+        let menu = makeMenu()
         menu.autoenablesItems = false
 
         let titleItem = actionItem("拾链 Linkwise", selector: #selector(openWebManager))
@@ -72,9 +73,8 @@ final class MenuBarController {
         let tree = BookmarkTreeBuilder.build(from: model.bookmarks)
 
         if !tree.bookmarks.isEmpty {
-            let uncategorized = NSMenuItem(title: "未分类", action: nil, keyEquivalent: "")
-            uncategorized.image = folderImage
-            let submenu = NSMenu()
+            let uncategorized = truncatedMenuItem(title: "未分类", image: folderImage)
+            let submenu = makeMenu()
             tree.bookmarks.forEach { submenu.addItem(bookmarkMenuItem($0)) }
             uncategorized.submenu = submenu
             menu.addItem(uncategorized)
@@ -86,9 +86,8 @@ final class MenuBarController {
     }
 
     private func folderMenuItem(_ folder: FolderNode) -> NSMenuItem {
-        let item = NSMenuItem(title: folder.name, action: nil, keyEquivalent: "")
-        item.image = folderImage
-        let submenu = NSMenu()
+        let item = truncatedMenuItem(title: folder.name, image: folderImage)
+        let submenu = makeMenu()
 
         for child in folder.folders {
             submenu.addItem(folderMenuItem(child))
@@ -108,8 +107,13 @@ final class MenuBarController {
 
     private func bookmarkMenuItem(_ bookmark: Bookmark) -> NSMenuItem {
         let viewModel = BookmarkViewModel(bookmark)
-        let item = NSMenuItem(title: viewModel.title, action: nil, keyEquivalent: "")
-        let submenu = NSMenu()
+        let item = truncatedMenuItem(title: viewModel.title)
+        let submenu = makeMenu()
+
+        if item.title != viewModel.title {
+            submenu.addItem(fullTitleHeaderItem(viewModel.title))
+            submenu.addItem(.separator())
+        }
 
         submenu.addItem(bookmarkActionItem("打开", bookmark: bookmark, selector: #selector(openBookmark(_:))))
 
@@ -126,6 +130,12 @@ final class MenuBarController {
         return item
     }
 
+    private func makeMenu() -> NSMenu {
+        let menu = NSMenu()
+        menu.minimumWidth = menuMinimumWidth
+        return menu
+    }
+
     private func actionItem(_ title: String, selector: Selector, key: String = "") -> NSMenuItem {
         let item = NSMenuItem(title: title, action: selector, keyEquivalent: key)
         item.target = self
@@ -133,13 +143,43 @@ final class MenuBarController {
         return item
     }
 
+    private func truncatedMenuItem(title: String, image: NSImage? = nil) -> NSMenuItem {
+        let item = NSMenuItem(title: truncatedTitle(title, image: image), action: nil, keyEquivalent: "")
+        item.image = image
+        return item
+    }
+
+    private func truncatedTitle(_ title: String, image: NSImage?) -> String {
+        let labelLeading: CGFloat = image == nil ? 18 : 37
+        let labelWidth = menuMinimumWidth - labelLeading - 34
+        let attributes: [NSAttributedString.Key: Any] = [.font: NSFont.menuFont(ofSize: 0)]
+
+        guard (title as NSString).size(withAttributes: attributes).width > labelWidth else {
+            return title
+        }
+
+        let ellipsis = "..."
+        var clipped = ""
+
+        for character in title {
+            let candidate = clipped + String(character) + ellipsis
+            guard (candidate as NSString).size(withAttributes: attributes).width <= labelWidth else {
+                break
+            }
+            clipped.append(character)
+        }
+
+        return clipped.isEmpty ? ellipsis : clipped + ellipsis
+    }
+
     private func lastSyncMenuItem() -> NSMenuItem {
         let title: String
 
         if let lastSyncAt = model.lastSyncAt {
             let formatter = DateFormatter()
-            formatter.dateStyle = .short
-            formatter.timeStyle = .short
+            formatter.dateFormat = Calendar.current.isDate(lastSyncAt, equalTo: Date(), toGranularity: .year)
+                ? "M/d HH:mm"
+                : "yyyy/M/d HH:mm"
             title = "上次同步 \(formatter.string(from: lastSyncAt))"
         } else {
             title = "尚未同步"
@@ -153,6 +193,13 @@ final class MenuBarController {
     private func bookmarkActionItem(_ title: String, bookmark: Bookmark, selector: Selector) -> NSMenuItem {
         let item = actionItem(title, selector: selector)
         item.representedObject = bookmark
+        return item
+    }
+
+    private func fullTitleHeaderItem(_ title: String) -> NSMenuItem {
+        let item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        item.isEnabled = false
+        item.view = MenuHeaderTitleView(title: title, width: menuMinimumWidth)
         return item
     }
 
@@ -222,5 +269,42 @@ private final class BookmarkBrowserAction {
     init(bookmark: Bookmark, browser: InstalledBrowser) {
         self.bookmark = bookmark
         self.browser = browser
+    }
+}
+
+private final class MenuHeaderTitleView: NSView {
+    private let label = NSTextField(wrappingLabelWithString: "")
+    private let contentInset = NSEdgeInsets(top: 5, left: 16, bottom: 2, right: 16)
+
+    init(title: String, width: CGFloat) {
+        let labelWidth = width - contentInset.left - contentInset.right
+        let attributes: [NSAttributedString.Key: Any] = [.font: NSFont.menuFont(ofSize: 0)]
+        let boundingRect = (title as NSString).boundingRect(
+            with: NSSize(width: labelWidth, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: attributes
+        )
+        let labelHeight = ceil(boundingRect.height)
+        let height = labelHeight + contentInset.top + contentInset.bottom
+
+        super.init(frame: NSRect(x: 0, y: 0, width: width, height: height))
+
+        label.font = .menuFont(ofSize: 0)
+        label.textColor = .disabledControlTextColor
+        label.lineBreakMode = .byWordWrapping
+        label.maximumNumberOfLines = 0
+        label.stringValue = title
+        label.frame = NSRect(
+            x: contentInset.left,
+            y: contentInset.bottom,
+            width: labelWidth,
+            height: labelHeight
+        )
+        addSubview(label)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
     }
 }
