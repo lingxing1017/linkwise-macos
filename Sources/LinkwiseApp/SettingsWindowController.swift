@@ -1,8 +1,10 @@
 import AppKit
 
 @MainActor
-final class SettingsWindowController: NSWindowController {
+final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     private let model: AppModel
+    private let addBrowserMenuValue = "__add_browser__"
+    private let contentWidth: CGFloat = 356
     private let serverField = NSTextField()
     private let refreshCheckbox = NSButton(checkboxWithTitle: "启动时自动刷新书签", target: nil, action: nil)
     private let browserPopup = NSPopUpButton()
@@ -11,7 +13,7 @@ final class SettingsWindowController: NSWindowController {
         self.model = model
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 460, height: 230),
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: 200),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -43,32 +45,32 @@ final class SettingsWindowController: NSWindowController {
             stack.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 22)
         ])
 
-        stack.addArrangedSubview(labeledRow(title: "Linkwise 服务地址", view: serverField))
+        serverField.delegate = self
+        serverField.target = self
+        serverField.action = #selector(saveValues)
+
+        let testButton = NSButton(title: "连接测试", target: self, action: #selector(testConnection))
+        stack.addArrangedSubview(
+            labeledRow(
+                title: "Linkwise 服务地址",
+                view: horizontalRow([serverField, testButton])
+            )
+        )
 
         refreshCheckbox.target = self
         refreshCheckbox.action = #selector(saveValues)
         stack.addArrangedSubview(refreshCheckbox)
 
-        stack.addArrangedSubview(labeledRow(title: "默认打开浏览器", view: browserPopup))
+        browserPopup.target = self
+        browserPopup.action = #selector(saveValues)
 
-        let buttonRow = NSStackView()
-        buttonRow.orientation = .horizontal
-        buttonRow.spacing = 10
-        buttonRow.alignment = .centerY
-
-        let testButton = NSButton(title: "连接测试", target: self, action: #selector(testConnection))
-        let saveButton = NSButton(title: "保存", target: self, action: #selector(saveAndClose))
-        let rescanButton = NSButton(title: "重新扫描浏览器", target: self, action: #selector(rescanBrowsers))
-        let addBrowserButton = NSButton(title: "添加浏览器...", target: self, action: #selector(addBrowser))
-
-        buttonRow.addArrangedSubview(testButton)
-        buttonRow.addArrangedSubview(rescanButton)
-        buttonRow.addArrangedSubview(addBrowserButton)
-        buttonRow.addArrangedSubview(NSView())
-        buttonRow.addArrangedSubview(saveButton)
-        stack.addArrangedSubview(buttonRow)
-
-        buttonRow.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+        let rescanButton = NSButton(title: "重新扫描", target: self, action: #selector(rescanBrowsers))
+        stack.addArrangedSubview(
+            labeledRow(
+                title: "默认打开浏览器",
+                view: horizontalRow([browserPopup, rescanButton])
+            )
+        )
     }
 
     private func labeledRow(title: String, view: NSView) -> NSStackView {
@@ -80,8 +82,28 @@ final class SettingsWindowController: NSWindowController {
         let label = NSTextField(labelWithString: title)
         row.addArrangedSubview(label)
         row.addArrangedSubview(view)
-        view.widthAnchor.constraint(equalToConstant: 416).isActive = true
+        view.widthAnchor.constraint(equalToConstant: contentWidth).isActive = true
 
+        return row
+    }
+
+    private func horizontalRow(_ views: [NSView]) -> NSStackView {
+        let row = NSStackView()
+        row.orientation = .horizontal
+        row.spacing = 8
+        row.alignment = .centerY
+
+        for view in views {
+            row.addArrangedSubview(view)
+        }
+
+        let trailingWidth = views.dropFirst().reduce(CGFloat.zero) { width, view in
+            width + view.intrinsicContentSize.width
+        }
+        let spacing = CGFloat(max(views.count - 1, 0)) * row.spacing
+        let firstViewWidth = max(180, contentWidth - trailingWidth - spacing)
+        views.first?.widthAnchor.constraint(equalToConstant: firstViewWidth).isActive = true
+        row.widthAnchor.constraint(equalToConstant: contentWidth).isActive = true
         return row
     }
 
@@ -101,6 +123,10 @@ final class SettingsWindowController: NSWindowController {
             browserPopup.lastItem?.representedObject = browser.bundleIdentifier
         }
 
+        browserPopup.menu?.addItem(.separator())
+        browserPopup.addItem(withTitle: "添加浏览器")
+        browserPopup.lastItem?.representedObject = addBrowserMenuValue
+
         if let current = model.settingsStore.defaultBrowserBundleID,
            let index = model.browsers.firstIndex(where: { $0.bundleIdentifier == current }) {
             browserPopup.selectItem(at: index + 1)
@@ -110,10 +136,22 @@ final class SettingsWindowController: NSWindowController {
     }
 
     @objc private func saveValues() {
+        let selectedBrowser = browserPopup.selectedItem?.representedObject as? String
+
+        if selectedBrowser == addBrowserMenuValue {
+            reloadBrowserPopup()
+            addBrowser()
+            return
+        }
+
         model.settingsStore.serverURL = serverField.stringValue
         model.settingsStore.refreshOnLaunch = refreshCheckbox.state == .on
-        model.settingsStore.defaultBrowserBundleID = browserPopup.selectedItem?.representedObject as? String
+        model.settingsStore.defaultBrowserBundleID = selectedBrowser
         model.notifyChange()
+    }
+
+    func controlTextDidEndEditing(_ obj: Notification) {
+        saveValues()
     }
 
     @objc private func testConnection() {
@@ -144,10 +182,5 @@ final class SettingsWindowController: NSWindowController {
         }
 
         reloadBrowserPopup()
-    }
-
-    @objc private func saveAndClose() {
-        saveValues()
-        close()
     }
 }
