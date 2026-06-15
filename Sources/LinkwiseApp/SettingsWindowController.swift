@@ -48,6 +48,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         serverField.delegate = self
         serverField.target = self
         serverField.action = #selector(saveValues)
+        serverField.placeholderString = "https://your-linkwise-server.example"
 
         let testButton = NSButton(title: "连接测试", target: self, action: #selector(testConnection))
         stack.addArrangedSubview(

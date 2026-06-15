@@ -34,7 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         model.loadCachedBookmarks()
 
-        if settingsStore.refreshOnLaunch {
+        if settingsStore.refreshOnLaunch, !settingsStore.serverURL.isEmpty {
             Task { await model.refreshBookmarks(showSuccess: false) }
         }
 

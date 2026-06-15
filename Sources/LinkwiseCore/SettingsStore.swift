@@ -21,7 +21,7 @@ public final class SettingsStore: @unchecked Sendable {
 
     public var serverURL: String {
         get {
-            defaults.string(forKey: Self.serverURLKey)?.normalizedServerURLString ?? "http://localhost:7500"
+            defaults.string(forKey: Self.serverURLKey)?.normalizedServerURLString ?? ""
         }
         set {
             defaults.set(newValue.normalizedServerURLString, forKey: Self.serverURLKey)
@@ -47,4 +47,3 @@ public final class SettingsStore: @unchecked Sendable {
         }
     }
 }
-

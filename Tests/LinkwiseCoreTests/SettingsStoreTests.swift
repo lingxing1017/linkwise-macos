@@ -6,7 +6,7 @@ final class SettingsStoreTests: XCTestCase {
         let defaults = MemorySettings()
         let store = SettingsStore(defaults: defaults)
 
-        XCTAssertEqual(store.serverURL, "http://localhost:7500")
+        XCTAssertEqual(store.serverURL, "")
 
         store.serverURL = " http://example.test/ "
 
