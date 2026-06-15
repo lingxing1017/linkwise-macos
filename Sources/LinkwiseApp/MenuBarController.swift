@@ -39,14 +39,7 @@ final class MenuBarController {
         titleItem.image = NSImage(systemSymbolName: "link", accessibilityDescription: "打开 Web 管理界面")
         menu.addItem(titleItem)
 
-        if let lastSyncAt = model.lastSyncAt {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .short
-            formatter.timeStyle = .short
-            let syncItem = NSMenuItem(title: "上次同步 \(formatter.string(from: lastSyncAt))", action: nil, keyEquivalent: "")
-            syncItem.isEnabled = false
-            menu.addItem(syncItem)
-        }
+        menu.addItem(lastSyncMenuItem())
 
         if model.lastError != nil {
             let errorItem = NSMenuItem(title: "Linkwise 服务未连接", action: nil, keyEquivalent: "")
@@ -55,7 +48,6 @@ final class MenuBarController {
         }
 
         menu.addItem(.separator())
-        menu.addItem(actionItem("刷新书签", selector: #selector(refreshBookmarks), key: "r"))
         menu.addItem(actionItem("保存当前页面", selector: #selector(saveCurrentPage), key: "s"))
         menu.addItem(.separator())
 
@@ -138,6 +130,23 @@ final class MenuBarController {
         let item = NSMenuItem(title: title, action: selector, keyEquivalent: key)
         item.target = self
         item.isEnabled = true
+        return item
+    }
+
+    private func lastSyncMenuItem() -> NSMenuItem {
+        let title: String
+
+        if let lastSyncAt = model.lastSyncAt {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .short
+            formatter.timeStyle = .short
+            title = "上次同步 \(formatter.string(from: lastSyncAt))"
+        } else {
+            title = "尚未同步"
+        }
+
+        let item = actionItem(title, selector: #selector(refreshBookmarks))
+        item.image = NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: "刷新书签")
         return item
     }
 
