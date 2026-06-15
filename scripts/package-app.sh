@@ -2,7 +2,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-APP_NAME="Linkwise"
+APP_NAME="拾链"
+EXECUTABLE_NAME="Linkwise"
 BUILD_CONFIG="release"
 APP_DIR="$ROOT_DIR/dist/$APP_NAME.app"
 CONTENTS_DIR="$APP_DIR/Contents"
@@ -13,7 +14,7 @@ swift build -c "$BUILD_CONFIG" --product LinkwiseApp
 
 rm -rf "$APP_DIR"
 mkdir -p "$MACOS_DIR"
-cp "$ROOT_DIR/.build/$BUILD_CONFIG/LinkwiseApp" "$MACOS_DIR/$APP_NAME"
+cp "$ROOT_DIR/.build/$BUILD_CONFIG/LinkwiseApp" "$MACOS_DIR/$EXECUTABLE_NAME"
 
 cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -25,9 +26,9 @@ cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
     <key>CFBundleIdentifier</key>
     <string>local.linkwise.macos</string>
     <key>CFBundleName</key>
-    <string>Linkwise</string>
+    <string>拾链</string>
     <key>CFBundleDisplayName</key>
-    <string>拾链 Linkwise</string>
+    <string>拾链</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -38,7 +39,7 @@ cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
     <array>
         <dict>
             <key>CFBundleURLName</key>
-            <string>Linkwise Save URL</string>
+            <string>拾链保存链接</string>
             <key>CFBundleURLSchemes</key>
             <array>
                 <string>linkwise</string>
@@ -50,7 +51,7 @@ cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
     <key>LSUIElement</key>
     <true/>
     <key>NSAppleEventsUsageDescription</key>
-    <string>Linkwise 需要读取当前浏览器标签页标题和 URL，用于保存当前页面为书签。</string>
+    <string>拾链需要读取当前浏览器标签页标题和 URL，用于保存当前页面为书签。</string>
 </dict>
 </plist>
 PLIST

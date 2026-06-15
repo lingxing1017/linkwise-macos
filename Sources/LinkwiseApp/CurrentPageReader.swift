@@ -84,12 +84,12 @@ struct CurrentPageReader {
         let output = appleScript.executeAndReturnError(&errorInfo)
 
         if let errorInfo {
-            let message = errorInfo[NSAppleScript.errorMessage] as? String ?? "Linkwise 需要获得自动化权限，才能读取当前浏览器标签页的标题和 URL。"
+            let message = errorInfo[NSAppleScript.errorMessage] as? String ?? "拾链需要获得自动化权限，才能读取当前浏览器标签页的标题和 URL。"
 
             if message.localizedCaseInsensitiveContains("not authorized") ||
                 message.localizedCaseInsensitiveContains("not allowed") ||
                 message.localizedCaseInsensitiveContains("permission") {
-                throw LinkwiseError.permissionDenied("Linkwise 需要获得自动化权限，才能读取当前浏览器标签页的标题和 URL。请在系统设置中允许 Linkwise 控制对应浏览器。")
+                throw LinkwiseError.permissionDenied("拾链需要获得自动化权限，才能读取当前浏览器标签页的标题和 URL。请在系统设置中允许拾链控制对应浏览器。")
             }
 
             throw LinkwiseError.noCurrentPage(message)

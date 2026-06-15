@@ -16,19 +16,19 @@ public enum LinkwiseError: LocalizedError, Equatable, Sendable {
     public var errorDescription: String? {
         switch self {
         case .invalidServerURL:
-            return "Linkwise 服务地址无效。"
+            return "拾链服务地址无效。"
         case .invalidBookmarkURL:
             return "书签 URL 无效。"
         case .invalidResponse:
-            return "Linkwise 服务返回无效响应。"
+            return "拾链服务返回无效响应。"
         case let .httpStatus(_, message, _):
-            return message ?? "Linkwise 服务请求失败。"
+            return message ?? "拾链服务请求失败。"
         case let .duplicateURL(message, _):
             return message
         case let .decoding(message):
-            return "无法解析 Linkwise 返回数据：\(message)"
+            return "无法解析拾链返回数据：\(message)"
         case let .network(message):
-            return "无法连接 Linkwise 服务：\(message)"
+            return "无法连接拾链服务：\(message)"
         case let .cache(message):
             return "本地缓存不可用：\(message)"
         case .unsupportedBrowser:

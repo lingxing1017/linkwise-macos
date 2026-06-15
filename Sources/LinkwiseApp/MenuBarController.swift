@@ -28,9 +28,9 @@ final class MenuBarController {
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "link", accessibilityDescription: "Linkwise")
+            button.image = NSImage(systemSymbolName: "link", accessibilityDescription: "拾链")
             button.imagePosition = .imageLeading
-            button.toolTip = "拾链 Linkwise"
+            button.toolTip = "拾链"
         }
 
         model.onChange = { [weak self] in
@@ -42,14 +42,14 @@ final class MenuBarController {
         let menu = makeMenu()
         menu.autoenablesItems = false
 
-        let titleItem = actionItem("拾链 Linkwise", selector: #selector(openWebManager))
+        let titleItem = actionItem("拾链", selector: #selector(openWebManager))
         titleItem.image = connectionStatusImage()
         menu.addItem(titleItem)
 
         menu.addItem(lastSyncMenuItem())
 
         if model.lastError != nil {
-            let errorItem = NSMenuItem(title: "无法连接 Linkwise 服务", action: nil, keyEquivalent: "")
+            let errorItem = NSMenuItem(title: "无法连接拾链服务", action: nil, keyEquivalent: "")
             errorItem.isEnabled = false
             menu.addItem(errorItem)
         }

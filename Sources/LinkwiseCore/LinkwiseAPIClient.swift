@@ -81,7 +81,7 @@ public struct LinkwiseAPIClient: Sendable {
 
             if httpResponse.statusCode == 409 || apiError?.status == "duplicate" || apiError?.error == "duplicate_url" {
                 throw LinkwiseError.duplicateURL(
-                    message: apiError?.message ?? "该 URL 已存在于 Linkwise。",
+                    message: apiError?.message ?? "该 URL 已存在于拾链。",
                     bookmark: apiError?.bookmark
                 )
             }
@@ -119,4 +119,3 @@ public extension String {
         return String(trimmed.dropLast())
     }
 }
-

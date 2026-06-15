@@ -57,7 +57,7 @@ final class AppModel {
             try cache.save(BookmarkCache(serverURL: settingsStore.serverURL, lastSyncAt: lastSyncAt, bookmarks: fetched))
 
             if showSuccess {
-                AlertPresenter.showMessage("书签已刷新", informativeText: "已从 Linkwise 同步 \(fetched.count) 个书签。")
+                AlertPresenter.showMessage("书签已刷新", informativeText: "已从拾链同步 \(fetched.count) 个书签。")
             }
         } catch {
             lastError = error.localizedDescription
@@ -68,7 +68,7 @@ final class AppModel {
         do {
             let client = try LinkwiseAPIClient(serverURLString: settingsStore.serverURL)
             _ = try await client.health()
-            AlertPresenter.showMessage("连接成功", informativeText: "Linkwise 服务可用。")
+            AlertPresenter.showMessage("连接成功", informativeText: "拾链服务可用。")
             return true
         } catch {
             AlertPresenter.show(error)
@@ -81,7 +81,7 @@ final class AppModel {
             let client = try LinkwiseAPIClient(serverURLString: settingsStore.serverURL)
             _ = try await client.createBookmark(CreateBookmarkRequest(title: title, url: url, folder: folder))
             await refreshBookmarks(showSuccess: false)
-            AlertPresenter.showMessage("保存成功", informativeText: "当前页面已保存到 Linkwise。")
+            AlertPresenter.showMessage("保存成功", informativeText: "当前页面已保存到拾链。")
             return true
         } catch {
             AlertPresenter.show(error)

@@ -18,7 +18,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
             backing: .buffered,
             defer: false
         )
-        window.title = "Linkwise 设置"
+        window.title = "拾链 设置"
         window.center()
         super.init(window: window)
         buildUI()
@@ -52,7 +52,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         let testButton = NSButton(title: "连接测试", target: self, action: #selector(testConnection))
         stack.addArrangedSubview(
             labeledRow(
-                title: "Linkwise 服务地址",
+                title: "拾链 服务地址",
                 view: horizontalRow([serverField, testButton])
             )
         )
