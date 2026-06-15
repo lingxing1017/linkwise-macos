@@ -43,13 +43,13 @@ final class MenuBarController {
         menu.autoenablesItems = false
 
         let titleItem = actionItem("拾链 Linkwise", selector: #selector(openWebManager))
-        titleItem.image = NSImage(systemSymbolName: "link", accessibilityDescription: "打开 Web 管理界面")
+        titleItem.image = connectionStatusImage()
         menu.addItem(titleItem)
 
         menu.addItem(lastSyncMenuItem())
 
         if model.lastError != nil {
-            let errorItem = NSMenuItem(title: "Linkwise 服务未连接", action: nil, keyEquivalent: "")
+            let errorItem = NSMenuItem(title: "无法连接 Linkwise 服务", action: nil, keyEquivalent: "")
             errorItem.isEnabled = false
             menu.addItem(errorItem)
         }
@@ -179,10 +179,24 @@ final class MenuBarController {
         return clipped.isEmpty ? ellipsis : clipped + ellipsis
     }
 
+    private func connectionStatusImage() -> NSImage? {
+        let color: NSColor = model.lastError == nil ? .systemGreen : .systemRed
+        let configuration = NSImage.SymbolConfiguration(paletteColors: [color])
+        let image = NSImage(
+            systemSymbolName: "link",
+            accessibilityDescription: model.lastError == nil ? "连接正常" : "连接失败"
+        )?.withSymbolConfiguration(configuration)
+        image?.isTemplate = false
+        image?.size = NSSize(width: 16, height: 16)
+        return image
+    }
+
     private func lastSyncMenuItem() -> NSMenuItem {
         let title: String
 
-        if let lastSyncAt = model.lastSyncAt {
+        if model.isRefreshing {
+            title = "正在同步书签..."
+        } else if let lastSyncAt = model.lastSyncAt {
             let formatter = DateFormatter()
             formatter.dateFormat = Calendar.current.isDate(lastSyncAt, equalTo: Date(), toGranularity: .year)
                 ? "M/d HH:mm"
@@ -194,6 +208,7 @@ final class MenuBarController {
 
         let item = actionItem(title, selector: #selector(refreshBookmarks))
         item.image = NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: "刷新书签")
+        item.isEnabled = !model.isRefreshing
         return item
     }
 

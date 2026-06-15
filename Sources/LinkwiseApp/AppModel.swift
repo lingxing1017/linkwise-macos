@@ -10,6 +10,7 @@ final class AppModel {
     private(set) var bookmarks: [Bookmark] = []
     private(set) var lastSyncAt: Date?
     private(set) var lastError: String?
+    private(set) var isRefreshing = false
     private(set) var browsers: [InstalledBrowser] = []
     var onChange: (() -> Void)?
 
@@ -37,7 +38,16 @@ final class AppModel {
         }
     }
 
-    func refreshBookmarks(showSuccess: Bool = true) async {
+    func refreshBookmarks(showSuccess: Bool = false) async {
+        guard !isRefreshing else { return }
+        isRefreshing = true
+        notifyChange()
+
+        defer {
+            isRefreshing = false
+            notifyChange()
+        }
+
         do {
             let client = try LinkwiseAPIClient(serverURLString: settingsStore.serverURL)
             let fetched = try await client.fetchBookmarks()
@@ -45,15 +55,12 @@ final class AppModel {
             lastSyncAt = Date()
             lastError = nil
             try cache.save(BookmarkCache(serverURL: settingsStore.serverURL, lastSyncAt: lastSyncAt, bookmarks: fetched))
-            notifyChange()
 
             if showSuccess {
                 AlertPresenter.showMessage("书签已刷新", informativeText: "已从 Linkwise 同步 \(fetched.count) 个书签。")
             }
         } catch {
             lastError = error.localizedDescription
-            notifyChange()
-            AlertPresenter.show(error)
         }
     }
 
