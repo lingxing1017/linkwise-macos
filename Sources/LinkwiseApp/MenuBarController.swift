@@ -48,8 +48,8 @@ final class MenuBarController {
             menu.addItem(syncItem)
         }
 
-        if let lastError = model.lastError {
-            let errorItem = NSMenuItem(title: "连接异常：\(lastError)", action: nil, keyEquivalent: "")
+        if model.lastError != nil {
+            let errorItem = NSMenuItem(title: "Linkwise 服务未连接", action: nil, keyEquivalent: "")
             errorItem.isEnabled = false
             menu.addItem(errorItem)
         }
