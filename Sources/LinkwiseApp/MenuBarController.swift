@@ -14,6 +14,12 @@ final class MenuBarController {
         image?.size = NSSize(width: 16, height: 16)
         return image
     }()
+    private lazy var bookmarkImage: NSImage? = {
+        let image = NSImage(systemSymbolName: "globe", accessibilityDescription: "网页")
+        image?.isTemplate = true
+        image?.size = NSSize(width: 16, height: 16)
+        return image
+    }()
 
     init(model: AppModel, onOpenSettings: @escaping () -> Void, onSaveCurrentPage: @escaping () -> Void) {
         self.model = model
@@ -107,7 +113,8 @@ final class MenuBarController {
 
     private func bookmarkMenuItem(_ bookmark: Bookmark) -> NSMenuItem {
         let viewModel = BookmarkViewModel(bookmark)
-        let item = actionItem(truncatedTitle(viewModel.title, image: nil), selector: #selector(openBookmark(_:)))
+        let item = actionItem(truncatedTitle(viewModel.title, image: bookmarkImage), selector: #selector(openBookmark(_:)))
+        item.image = bookmarkImage
         item.representedObject = bookmark
         let submenu = makeMenu()
 
@@ -150,7 +157,8 @@ final class MenuBarController {
 
     private func truncatedTitle(_ title: String, image: NSImage?) -> String {
         let labelLeading: CGFloat = image == nil ? 18 : 37
-        let labelWidth = menuMinimumWidth - labelLeading - 34
+        let imageColumnSafety: CGFloat = image == nil ? 0 : 34
+        let labelWidth = menuMinimumWidth - labelLeading - 34 - imageColumnSafety
         let attributes: [NSAttributedString.Key: Any] = [.font: NSFont.menuFont(ofSize: 0)]
 
         guard (title as NSString).size(withAttributes: attributes).width > labelWidth else {
