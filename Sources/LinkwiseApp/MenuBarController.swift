@@ -107,15 +107,14 @@ final class MenuBarController {
 
     private func bookmarkMenuItem(_ bookmark: Bookmark) -> NSMenuItem {
         let viewModel = BookmarkViewModel(bookmark)
-        let item = truncatedMenuItem(title: viewModel.title)
+        let item = actionItem(truncatedTitle(viewModel.title, image: nil), selector: #selector(openBookmark(_:)))
+        item.representedObject = bookmark
         let submenu = makeMenu()
 
         if item.title != viewModel.title {
             submenu.addItem(fullTitleHeaderItem(viewModel.title))
             submenu.addItem(.separator())
         }
-
-        submenu.addItem(bookmarkActionItem("打开", bookmark: bookmark, selector: #selector(openBookmark(_:))))
 
         for browser in model.browsers {
             let browserItem = bookmarkActionItem("用 \(browser.name) 打开", bookmark: bookmark, selector: #selector(openBookmarkWithBrowser(_:)))
