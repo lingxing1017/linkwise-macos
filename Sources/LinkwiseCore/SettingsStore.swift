@@ -6,7 +6,7 @@ public protocol KeyValueSettings: Sendable {
     func set(_ value: Any?, forKey defaultName: String)
 }
 
-extension UserDefaults: KeyValueSettings {}
+extension UserDefaults: @retroactive @unchecked Sendable, KeyValueSettings {}
 
 public final class SettingsStore: @unchecked Sendable {
     public static let serverURLKey = "serverURL"
