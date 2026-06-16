@@ -24,14 +24,14 @@ jobs:
         run: scripts/package-app.sh
 
       - name: Zip app
-        run: ditto -c -k --sequesterRsrc --keepParent "dist/拾链.app" "dist/拾链.zip"
+        run: ditto -c -k --sequesterRsrc --keepParent "dist/拾链.app" "dist/Linkwise-macOS.zip"
 
       - name: Prepare daily release tag
         id: release
         run: |
           release_date="$(TZ=Asia/Hong_Kong date +%Y.%m.%d)"
           echo "tag_name=macos-$release_date" >> "$GITHUB_OUTPUT"
-          echo "release_name=macOS build $release_date" >> "$GITHUB_OUTPUT"
+          echo "release_name=Linkwise macOS $release_date" >> "$GITHUB_OUTPUT"
 
       - name: Move daily release tag
         run: |
@@ -42,7 +42,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: linkwise-macos-app
-          path: dist/拾链.zip
+          path: dist/Linkwise-macOS.zip
 
       - name: Publish GitHub release
         env:
@@ -51,9 +51,9 @@ jobs:
           RELEASE_NAME: ${{ steps.release.outputs.release_name }}
         run: |
           if gh release view "$TAG_NAME" >/dev/null 2>&1; then
-            gh release upload "$TAG_NAME" "dist/拾链.zip" --clobber
+            gh release upload "$TAG_NAME" "dist/Linkwise-macOS.zip" --clobber
           else
-            gh release create "$TAG_NAME" "dist/拾链.zip" \
+            gh release create "$TAG_NAME" "dist/Linkwise-macOS.zip" \
               --title "$RELEASE_NAME" \
-              --notes "macOS app build for $TAG_NAME"
+              --notes "Download the macOS app below."
           fi
