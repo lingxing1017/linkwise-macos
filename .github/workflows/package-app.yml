@@ -49,11 +49,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG_NAME: ${{ steps.release.outputs.tag_name }}
           RELEASE_NAME: ${{ steps.release.outputs.release_name }}
+          RELEASE_NOTES: Download the macOS app below.
         run: |
           if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release edit "$TAG_NAME" \
+              --title "$RELEASE_NAME" \
+              --notes "$RELEASE_NOTES"
+            gh release view "$TAG_NAME" --json assets --jq '.assets[].name' | while read -r asset_name; do
+              gh release delete-asset "$TAG_NAME" "$asset_name" --yes
+            done
             gh release upload "$TAG_NAME" "dist/Linkwise-macOS.zip" --clobber
           else
             gh release create "$TAG_NAME" "dist/Linkwise-macOS.zip" \
               --title "$RELEASE_NAME" \
-              --notes "Download the macOS app below."
+              --notes "$RELEASE_NOTES"
           fi
