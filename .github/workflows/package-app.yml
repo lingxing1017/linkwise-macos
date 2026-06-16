@@ -12,7 +12,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Show Xcode version
         run: xcodebuild -version
@@ -39,7 +39,7 @@ jobs:
           git push --force origin "refs/tags/${{ steps.release.outputs.tag_name }}"
 
       - name: Upload app artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linkwise-macos-app
           path: dist/拾链.zip
