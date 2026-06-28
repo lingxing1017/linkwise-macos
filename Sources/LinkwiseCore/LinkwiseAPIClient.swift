@@ -8,18 +8,24 @@ extension URLSession: LinkwiseHTTPClient {}
 
 public struct LinkwiseAPIClient: Sendable {
     private let serverURL: URL
+    private let appToken: String?
     private let httpClient: LinkwiseHTTPClient
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
 
-    public init(serverURL: URL, httpClient: LinkwiseHTTPClient = URLSession.shared) {
+    public init(serverURL: URL, appToken: String? = nil, httpClient: LinkwiseHTTPClient = URLSession.shared) {
         self.serverURL = serverURL
+        self.appToken = appToken
         self.httpClient = httpClient
         self.decoder = JSONDecoder()
         self.encoder = JSONEncoder()
     }
 
-    public init(serverURLString: String, httpClient: LinkwiseHTTPClient = URLSession.shared) throws {
+    public init(
+        serverURLString: String,
+        appToken: String? = nil,
+        httpClient: LinkwiseHTTPClient = URLSession.shared
+    ) throws {
         guard let url = URL(string: serverURLString.normalizedServerURLString),
               let scheme = url.scheme?.lowercased(),
               ["http", "https"].contains(scheme),
@@ -28,7 +34,7 @@ public struct LinkwiseAPIClient: Sendable {
             throw LinkwiseError.invalidServerURL
         }
 
-        self.init(serverURL: url, httpClient: httpClient)
+        self.init(serverURL: url, appToken: appToken, httpClient: httpClient)
     }
 
     public func health() async throws -> HealthResponse {
@@ -41,20 +47,34 @@ public struct LinkwiseAPIClient: Sendable {
 
     public func createBookmark(_ request: CreateBookmarkRequest) async throws -> CreateBookmarkResponse {
         let body = try encoder.encode(request)
-        return try await send(path: "/api/bookmarks", method: "POST", body: body)
+        return try await send(path: "/api/bookmarks", method: "POST", body: body, requiresAuth: true)
     }
 
     public func recordOpen(bookmarkID: String) async throws {
         let encodedID = bookmarkID.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? bookmarkID
-        let _: EmptyResponse = try await send(path: "/api/bookmarks/\(encodedID)/open", method: "POST", body: Data())
+        let _: EmptyResponse = try await send(
+            path: "/api/bookmarks/\(encodedID)/open",
+            method: "POST",
+            body: Data(),
+            requiresAuth: true
+        )
     }
 
-    private func send<Response: Decodable>(path: String, method: String, body: Data?) async throws -> Response {
+    private func send<Response: Decodable>(
+        path: String,
+        method: String,
+        body: Data?,
+        requiresAuth: Bool = false
+    ) async throws -> Response {
         let url = serverURL.appendingPathComponent(path.trimmingCharacters(in: CharacterSet(charactersIn: "/")))
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.timeoutInterval = 15
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        if requiresAuth, let appToken, !appToken.isEmpty {
+            request.setValue("Bearer \(appToken)", forHTTPHeaderField: "Authorization")
+        }
 
         if let body {
             request.httpBody = body
@@ -78,6 +98,18 @@ public struct LinkwiseAPIClient: Sendable {
 
         guard (200..<300).contains(httpResponse.statusCode) else {
             let apiError = try? decoder.decode(APIErrorResponse.self, from: data)
+            let errorCode = apiError?.error ?? apiError?.status
+
+            switch errorCode {
+            case "app_session_required":
+                throw LinkwiseError.appSessionRequired
+            case "admin_session_required":
+                throw LinkwiseError.adminSessionRequired
+            case "mixed_auth_not_allowed":
+                throw LinkwiseError.mixedAuthNotAllowed
+            default:
+                break
+            }
 
             if httpResponse.statusCode == 409 || apiError?.status == "duplicate" || apiError?.error == "duplicate_url" {
                 throw LinkwiseError.duplicateURL(
@@ -89,7 +121,7 @@ public struct LinkwiseAPIClient: Sendable {
             throw LinkwiseError.httpStatus(
                 httpResponse.statusCode,
                 message: apiError?.message,
-                code: apiError?.error ?? apiError?.status
+                code: errorCode
             )
         }
 

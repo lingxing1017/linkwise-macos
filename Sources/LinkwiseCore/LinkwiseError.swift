@@ -5,6 +5,9 @@ public enum LinkwiseError: LocalizedError, Equatable, Sendable {
     case invalidBookmarkURL(String)
     case invalidResponse
     case httpStatus(Int, message: String?, code: String?)
+    case appSessionRequired
+    case adminSessionRequired
+    case mixedAuthNotAllowed
     case duplicateURL(message: String, bookmark: Bookmark?)
     case decoding(String)
     case network(String)
@@ -24,6 +27,12 @@ public enum LinkwiseError: LocalizedError, Equatable, Sendable {
             return "拾链服务返回无效响应。"
         case let .httpStatus(_, message, _):
             return message ?? "拾链服务请求失败。"
+        case .appSessionRequired:
+            return "此设备访问已失效，请重新配对 App token。"
+        case .adminSessionRequired:
+            return "该操作需要 Web 管理端权限，App 无法访问。"
+        case .mixedAuthNotAllowed:
+            return "请求同时包含管理端和 App 凭证，请检查登录状态。"
         case let .duplicateURL(message, _):
             return message
         case let .decoding(message):
