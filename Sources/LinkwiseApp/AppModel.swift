@@ -2,26 +2,94 @@ import AppKit
 import Foundation
 import LinkwiseCore
 
+enum ReadConnectionState: Equatable {
+    case unconfigured
+    case idle
+    case refreshing
+    case available
+    case failed(String)
+}
+
+enum WriteAuthState: Equatable {
+    case unpaired
+    case paired
+    case needsRepairing
+}
+
+protocol LinkwiseAPIClientProtocol: Sendable {
+    func health() async throws -> HealthResponse
+    func fetchBookmarks() async throws -> [Bookmark]
+    func createBookmark(_ request: CreateBookmarkRequest) async throws -> CreateBookmarkResponse
+    func recordOpen(bookmarkID: String) async throws
+}
+
+extension LinkwiseAPIClient: LinkwiseAPIClientProtocol {}
+
+typealias LinkwiseAPIClientFactory = @Sendable (_ serverURL: String, _ appToken: String?) throws -> any LinkwiseAPIClientProtocol
+
 @MainActor
 final class AppModel {
     let settingsStore: SettingsStore
     let cache: LocalCache
+    private let appTokenStore: AppTokenStore
+    private let apiClientFactory: LinkwiseAPIClientFactory
     private let customBrowserStore = CustomBrowserStore()
     private(set) var bookmarks: [Bookmark] = []
     private(set) var lastSyncAt: Date?
     private(set) var lastError: String?
     private(set) var isRefreshing = false
     private(set) var browsers: [InstalledBrowser] = []
+    private(set) var readConnectionState: ReadConnectionState
+    private(set) var writeAuthState: WriteAuthState
     var onChange: (() -> Void)?
 
-    init(settingsStore: SettingsStore, cache: LocalCache) {
+    init(
+        settingsStore: SettingsStore,
+        cache: LocalCache,
+        appTokenStore: AppTokenStore = KeychainAppTokenStore(),
+        apiClientFactory: @escaping LinkwiseAPIClientFactory = { serverURL, appToken in
+            try LinkwiseAPIClient(serverURLString: serverURL, appToken: appToken)
+        }
+    ) {
         self.settingsStore = settingsStore
         self.cache = cache
+        self.appTokenStore = appTokenStore
+        self.apiClientFactory = apiClientFactory
+        self.readConnectionState = settingsStore.serverURL.isEmpty ? .unconfigured : .idle
+        self.writeAuthState = ((try? appTokenStore.loadToken())?.isEmpty == false) ? .paired : .unpaired
         self.browsers = BrowserDetector(customBrowsers: customBrowserStore.load()).installedBrowsers()
     }
 
     var serverURL: String {
         settingsStore.serverURL
+    }
+
+    var hasAppToken: Bool {
+        (try? appTokenStore.loadToken())?.isEmpty == false
+    }
+
+    func createPublicClient() throws -> any LinkwiseAPIClientProtocol {
+        try apiClientFactory(settingsStore.serverURL, nil)
+    }
+
+    func createAuthorizedClient() throws -> any LinkwiseAPIClientProtocol {
+        guard let token = try appTokenStore.loadToken(), !token.isEmpty else {
+            writeAuthState = .unpaired
+            notifyChange()
+            throw LinkwiseError.appSessionRequired
+        }
+
+        writeAuthState = .paired
+        return try apiClientFactory(settingsStore.serverURL, token)
+    }
+
+    func handleWriteFailure(_ error: Error) {
+        guard let linkwiseError = error as? LinkwiseError else { return }
+
+        if linkwiseError == .appSessionRequired {
+            writeAuthState = .needsRepairing
+            notifyChange()
+        }
     }
 
     func loadCachedBookmarks() {
@@ -41,6 +109,7 @@ final class AppModel {
     func refreshBookmarks(showSuccess: Bool = false) async {
         guard !isRefreshing else { return }
         isRefreshing = true
+        readConnectionState = settingsStore.serverURL.isEmpty ? .unconfigured : .refreshing
         notifyChange()
 
         defer {
@@ -49,11 +118,12 @@ final class AppModel {
         }
 
         do {
-            let client = try LinkwiseAPIClient(serverURLString: settingsStore.serverURL)
+            let client = try createPublicClient()
             let fetched = try await client.fetchBookmarks()
             bookmarks = fetched
             lastSyncAt = Date()
             lastError = nil
+            readConnectionState = .available
             try cache.save(BookmarkCache(serverURL: settingsStore.serverURL, lastSyncAt: lastSyncAt, bookmarks: fetched))
 
             if showSuccess {
@@ -61,16 +131,19 @@ final class AppModel {
             }
         } catch {
             lastError = error.localizedDescription
+            readConnectionState = .failed(error.localizedDescription)
         }
     }
 
     func testConnection() async -> Bool {
         do {
-            let client = try LinkwiseAPIClient(serverURLString: settingsStore.serverURL)
+            let client = try createPublicClient()
             _ = try await client.health()
+            readConnectionState = .available
             AlertPresenter.showMessage("连接成功", informativeText: "拾链服务可用。")
             return true
         } catch {
+            readConnectionState = .failed(error.localizedDescription)
             AlertPresenter.show(error)
             return false
         }
@@ -78,12 +151,13 @@ final class AppModel {
 
     func createBookmark(title: String, url: String, folder: String) async -> Bool {
         do {
-            let client = try LinkwiseAPIClient(serverURLString: settingsStore.serverURL)
+            let client = try createPublicClient()
             _ = try await client.createBookmark(CreateBookmarkRequest(title: title, url: url, folder: folder))
             await refreshBookmarks(showSuccess: false)
             AlertPresenter.showMessage("保存成功", informativeText: "当前页面已保存到拾链。")
             return true
         } catch {
+            handleWriteFailure(error)
             AlertPresenter.show(error)
             return false
         }
@@ -92,7 +166,7 @@ final class AppModel {
     func recordOpen(bookmark: Bookmark) {
         Task {
             do {
-                let client = try LinkwiseAPIClient(serverURLString: settingsStore.serverURL)
+                let client = try createPublicClient()
                 try await client.recordOpen(bookmarkID: bookmark.id)
             } catch {
                 // Opening the URL is the primary action; usage tracking is best effort.
