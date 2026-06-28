@@ -108,6 +108,49 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.writeAuthState, .unpaired)
     }
 
+    func testCreateBookmarkWithoutTokenDoesNotCallClientFactory() async {
+        let records = ClientFactoryRecords()
+        let model = makeModel(
+            tokenStore: MemoryAppTokenStore(),
+            clientFactory: records.factory(client: StubLinkwiseClient())
+        )
+
+        let success = await model.createBookmark(title: "Example", url: "https://example.test", folder: "Inbox")
+
+        XCTAssertFalse(success)
+        XCTAssertTrue(records.tokens.isEmpty)
+        XCTAssertEqual(model.writeAuthState, .unpaired)
+    }
+
+    func testCreateBookmarkUsesAuthorizedClientThenRefreshesPublicly() async {
+        let records = ClientFactoryRecords()
+        let model = makeModel(
+            tokenStore: MemoryAppTokenStore(token: "lwapp_secret"),
+            clientFactory: records.factory(client: StubLinkwiseClient(bookmarks: [
+                Bookmark(id: "1", title: "Example", url: "https://example.test")
+            ]))
+        )
+
+        let success = await model.createBookmark(title: "Example", url: "https://example.test", folder: "Inbox")
+
+        XCTAssertTrue(success)
+        XCTAssertEqual(records.tokens, ["lwapp_secret", nil])
+        XCTAssertEqual(model.writeAuthState, .paired)
+        XCTAssertEqual(model.bookmarks.count, 1)
+    }
+
+    func testCreateBookmarkAppSessionRequiredMarksNeedsRepairing() async {
+        let model = makeModel(
+            tokenStore: MemoryAppTokenStore(token: "lwapp_secret"),
+            clientFactory: { _, _ in StubLinkwiseClient(createError: LinkwiseError.appSessionRequired) }
+        )
+
+        let success = await model.createBookmark(title: "Example", url: "https://example.test", folder: "Inbox")
+
+        XCTAssertFalse(success)
+        XCTAssertEqual(model.writeAuthState, .needsRepairing)
+    }
+
     private func makeModel(
         tokenStore: AppTokenStore,
         clientFactory: @escaping LinkwiseAPIClientFactory = { _, _ in StubLinkwiseClient() }
@@ -121,7 +164,8 @@ final class AppModelTests: XCTestCase {
             settingsStore: SettingsStore(defaults: defaults),
             cache: LocalCache(fileURL: cacheURL),
             appTokenStore: tokenStore,
-            apiClientFactory: clientFactory
+            apiClientFactory: clientFactory,
+            alertPresenter: { _, _ in }
         )
     }
 }
@@ -148,9 +192,11 @@ private final class ClientFactoryRecords: @unchecked Sendable {
 
 private final class StubLinkwiseClient: LinkwiseAPIClientProtocol, @unchecked Sendable {
     var bookmarks: [Bookmark]
+    var createError: Error?
 
-    init(bookmarks: [Bookmark] = []) {
+    init(bookmarks: [Bookmark] = [], createError: Error? = nil) {
         self.bookmarks = bookmarks
+        self.createError = createError
     }
 
     func health() async throws -> HealthResponse {
@@ -162,7 +208,11 @@ private final class StubLinkwiseClient: LinkwiseAPIClientProtocol, @unchecked Se
     }
 
     func createBookmark(_ request: CreateBookmarkRequest) async throws -> CreateBookmarkResponse {
-        CreateBookmarkResponse(status: "ok", id: "1", title: request.title, url: request.url, folder: request.folder)
+        if let createError {
+            throw createError
+        }
+
+        return CreateBookmarkResponse(status: "ok", id: "1", title: request.title, url: request.url, folder: request.folder)
     }
 
     func recordOpen(bookmarkID: String) async throws {}

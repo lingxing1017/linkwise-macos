@@ -26,6 +26,7 @@ protocol LinkwiseAPIClientProtocol: Sendable {
 extension LinkwiseAPIClient: LinkwiseAPIClientProtocol {}
 
 typealias LinkwiseAPIClientFactory = @Sendable (_ serverURL: String, _ appToken: String?) throws -> any LinkwiseAPIClientProtocol
+typealias AlertPresenterHandler = @MainActor @Sendable (_ message: String, _ informativeText: String) -> Void
 
 @MainActor
 final class AppModel {
@@ -33,6 +34,7 @@ final class AppModel {
     let cache: LocalCache
     private let appTokenStore: AppTokenStore
     private let apiClientFactory: LinkwiseAPIClientFactory
+    private let alertPresenter: AlertPresenterHandler
     private let customBrowserStore = CustomBrowserStore()
     private(set) var bookmarks: [Bookmark] = []
     private(set) var lastSyncAt: Date?
@@ -49,12 +51,16 @@ final class AppModel {
         appTokenStore: AppTokenStore = KeychainAppTokenStore(),
         apiClientFactory: @escaping LinkwiseAPIClientFactory = { serverURL, appToken in
             try LinkwiseAPIClient(serverURLString: serverURL, appToken: appToken)
+        },
+        alertPresenter: @escaping AlertPresenterHandler = { message, informativeText in
+            AlertPresenter.showMessage(message, informativeText: informativeText)
         }
     ) {
         self.settingsStore = settingsStore
         self.cache = cache
         self.appTokenStore = appTokenStore
         self.apiClientFactory = apiClientFactory
+        self.alertPresenter = alertPresenter
         self.readConnectionState = settingsStore.serverURL.isEmpty ? .unconfigured : .idle
         self.writeAuthState = ((try? appTokenStore.loadToken())?.isEmpty == false) ? .paired : .unpaired
         self.browsers = BrowserDetector(customBrowsers: customBrowserStore.load()).installedBrowsers()
@@ -120,7 +126,7 @@ final class AppModel {
     func handleWriteFailure(_ error: Error) {
         guard let linkwiseError = error as? LinkwiseError else { return }
 
-        if linkwiseError == .appSessionRequired {
+        if linkwiseError == .appSessionRequired, writeAuthState != .unpaired {
             writeAuthState = .needsRepairing
             notifyChange()
         }
@@ -161,7 +167,7 @@ final class AppModel {
             try cache.save(BookmarkCache(serverURL: settingsStore.serverURL, lastSyncAt: lastSyncAt, bookmarks: fetched))
 
             if showSuccess {
-                AlertPresenter.showMessage("书签已刷新", informativeText: "已从拾链同步 \(fetched.count) 个书签。")
+                alertPresenter("书签已刷新", "已从拾链同步 \(fetched.count) 个书签。")
             }
         } catch {
             lastError = error.localizedDescription
@@ -174,25 +180,25 @@ final class AppModel {
             let client = try createPublicClient()
             _ = try await client.health()
             readConnectionState = .available
-            AlertPresenter.showMessage("连接成功", informativeText: "拾链服务可用。")
+            alertPresenter("连接成功", "拾链服务可用。")
             return true
         } catch {
             readConnectionState = .failed(error.localizedDescription)
-            AlertPresenter.show(error)
+            alertPresenter("操作失败", error.localizedDescription)
             return false
         }
     }
 
     func createBookmark(title: String, url: String, folder: String) async -> Bool {
         do {
-            let client = try createPublicClient()
+            let client = try createAuthorizedClient()
             _ = try await client.createBookmark(CreateBookmarkRequest(title: title, url: url, folder: folder))
             await refreshBookmarks(showSuccess: false)
-            AlertPresenter.showMessage("保存成功", informativeText: "当前页面已保存到拾链。")
+            alertPresenter("保存成功", "当前页面已保存到拾链。")
             return true
         } catch {
             handleWriteFailure(error)
-            AlertPresenter.show(error)
+            alertPresenter("操作失败", error.localizedDescription)
             return false
         }
     }
