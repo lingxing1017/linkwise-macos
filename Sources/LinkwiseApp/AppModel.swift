@@ -68,6 +68,40 @@ final class AppModel {
         (try? appTokenStore.loadToken())?.isEmpty == false
     }
 
+    var appTokenPrefix: String? {
+        guard let token = try? appTokenStore.loadToken(), !token.isEmpty else {
+            return nil
+        }
+
+        return String(token.prefix(16))
+    }
+
+    @discardableResult
+    func saveAppTokenIfPresent(_ rawToken: String) throws -> Bool {
+        let token = rawToken.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !token.isEmpty else {
+            writeAuthState = hasAppToken ? .paired : .unpaired
+            notifyChange()
+            return false
+        }
+
+        guard token.hasPrefix("lwapp_") else {
+            throw LinkwiseError.invalidAppToken
+        }
+
+        try appTokenStore.saveToken(token)
+        writeAuthState = .paired
+        notifyChange()
+        return true
+    }
+
+    func deleteAppToken() throws {
+        try appTokenStore.deleteToken()
+        writeAuthState = .unpaired
+        notifyChange()
+    }
+
     func createPublicClient() throws -> any LinkwiseAPIClientProtocol {
         try apiClientFactory(settingsStore.serverURL, nil)
     }

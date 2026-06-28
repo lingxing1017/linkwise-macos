@@ -6,6 +6,9 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     private let addBrowserMenuValue = "__add_browser__"
     private let contentWidth: CGFloat = 356
     private let serverField = NSTextField()
+    private let tokenField = NSSecureTextField()
+    private let tokenStatusLabel = NSTextField(labelWithString: "")
+    private let removeTokenButton = NSButton(title: "移除", target: nil, action: nil)
     private let refreshCheckbox = NSButton(checkboxWithTitle: "启动时自动刷新书签", target: nil, action: nil)
     private let browserPopup = NSPopUpButton()
 
@@ -13,7 +16,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         self.model = model
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 400, height: 200),
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: 270),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -57,6 +60,22 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
                 view: horizontalRow([serverField, testButton])
             )
         )
+
+        tokenField.delegate = self
+        tokenField.target = self
+        tokenField.action = #selector(saveValues)
+        tokenField.placeholderString = "lwapp_..."
+
+        removeTokenButton.target = self
+        removeTokenButton.action = #selector(removeAppToken)
+
+        let tokenStack = NSStackView()
+        tokenStack.orientation = .vertical
+        tokenStack.spacing = 6
+        tokenStack.alignment = .leading
+        tokenStack.addArrangedSubview(horizontalRow([tokenField, removeTokenButton]))
+        tokenStack.addArrangedSubview(tokenStatusLabel)
+        stack.addArrangedSubview(labeledRow(title: "App Token", view: tokenStack))
 
         refreshCheckbox.target = self
         refreshCheckbox.action = #selector(saveValues)
@@ -110,8 +129,20 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
 
     private func loadValues() {
         serverField.stringValue = model.settingsStore.serverURL
+        tokenField.stringValue = ""
+        updateTokenStatus()
         refreshCheckbox.state = model.settingsStore.refreshOnLaunch ? .on : .off
         reloadBrowserPopup()
+    }
+
+    private func updateTokenStatus() {
+        if let prefix = model.appTokenPrefix {
+            tokenStatusLabel.stringValue = "已保存 \(prefix)..."
+            removeTokenButton.isEnabled = true
+        } else {
+            tokenStatusLabel.stringValue = "未配对"
+            removeTokenButton.isEnabled = false
+        }
     }
 
     private func reloadBrowserPopup() {
@@ -148,6 +179,16 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         model.settingsStore.serverURL = serverField.stringValue
         model.settingsStore.refreshOnLaunch = refreshCheckbox.state == .on
         model.settingsStore.defaultBrowserBundleID = selectedBrowser
+        do {
+            if try model.saveAppTokenIfPresent(tokenField.stringValue) {
+                tokenField.stringValue = ""
+            }
+            updateTokenStatus()
+        } catch {
+            AlertPresenter.show(error)
+            window?.makeFirstResponder(tokenField)
+            return
+        }
         model.notifyChange()
     }
 
@@ -163,6 +204,16 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     @objc private func rescanBrowsers() {
         model.rescanBrowsers()
         reloadBrowserPopup()
+    }
+
+    @objc private func removeAppToken() {
+        do {
+            try model.deleteAppToken()
+            tokenField.stringValue = ""
+            updateTokenStatus()
+        } catch {
+            AlertPresenter.show(error)
+        }
     }
 
     @objc private func addBrowser() {

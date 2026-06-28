@@ -8,6 +8,7 @@ public enum LinkwiseError: LocalizedError, Equatable, Sendable {
     case appSessionRequired
     case adminSessionRequired
     case mixedAuthNotAllowed
+    case invalidAppToken
     case duplicateURL(message: String, bookmark: Bookmark?)
     case decoding(String)
     case network(String)
@@ -33,6 +34,8 @@ public enum LinkwiseError: LocalizedError, Equatable, Sendable {
             return "该操作需要 Web 管理端权限，App 无法访问。"
         case .mixedAuthNotAllowed:
             return "请求同时包含管理端和 App 凭证，请检查登录状态。"
+        case .invalidAppToken:
+            return "App Token 无效，请输入以 lwapp_ 开头的 token。"
         case let .duplicateURL(message, _):
             return message
         case let .decoding(message):

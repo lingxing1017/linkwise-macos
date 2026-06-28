@@ -65,6 +65,49 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.writeAuthState, .needsRepairing)
     }
 
+    func testSaveAppTokenTrimsAndUpdatesAuthState() throws {
+        let tokenStore = MemoryAppTokenStore()
+        let model = makeModel(tokenStore: tokenStore)
+
+        let saved = try model.saveAppTokenIfPresent("  lwapp_secret  ")
+
+        XCTAssertTrue(saved)
+        XCTAssertEqual(try tokenStore.loadToken(), "lwapp_secret")
+        XCTAssertEqual(model.appTokenPrefix, "lwapp_secret")
+        XCTAssertEqual(model.writeAuthState, .paired)
+    }
+
+    func testBlankAppTokenInputDoesNotOverwriteExistingToken() throws {
+        let tokenStore = MemoryAppTokenStore(token: "lwapp_existing")
+        let model = makeModel(tokenStore: tokenStore)
+
+        let saved = try model.saveAppTokenIfPresent("   ")
+
+        XCTAssertFalse(saved)
+        XCTAssertEqual(try tokenStore.loadToken(), "lwapp_existing")
+        XCTAssertEqual(model.writeAuthState, .paired)
+    }
+
+    func testRejectsInvalidAppTokenPrefix() {
+        let model = makeModel(tokenStore: MemoryAppTokenStore())
+
+        XCTAssertThrowsError(try model.saveAppTokenIfPresent("not-a-token")) { error in
+            XCTAssertEqual(error as? LinkwiseError, .invalidAppToken)
+        }
+        XCTAssertEqual(model.writeAuthState, .unpaired)
+    }
+
+    func testDeleteAppTokenClearsStoredTokenAndAuthState() throws {
+        let tokenStore = MemoryAppTokenStore(token: "lwapp_secret")
+        let model = makeModel(tokenStore: tokenStore)
+
+        try model.deleteAppToken()
+
+        XCTAssertNil(try tokenStore.loadToken())
+        XCTAssertNil(model.appTokenPrefix)
+        XCTAssertEqual(model.writeAuthState, .unpaired)
+    }
+
     private func makeModel(
         tokenStore: AppTokenStore,
         clientFactory: @escaping LinkwiseAPIClientFactory = { _, _ in StubLinkwiseClient() }
