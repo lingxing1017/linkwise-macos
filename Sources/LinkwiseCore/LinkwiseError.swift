@@ -9,6 +9,7 @@ public enum LinkwiseError: LocalizedError, Equatable, Sendable {
     case decoding(String)
     case network(String)
     case cache(String)
+    case secureStorage(String)
     case unsupportedBrowser
     case permissionDenied(String)
     case noCurrentPage(String)
@@ -31,6 +32,8 @@ public enum LinkwiseError: LocalizedError, Equatable, Sendable {
             return "无法连接拾链服务：\(message)"
         case let .cache(message):
             return "本地缓存不可用：\(message)"
+        case let .secureStorage(message):
+            return "安全存储不可用：\(message)"
         case .unsupportedBrowser:
             return "当前应用暂不支持读取页面，请切换到 Safari、Chrome、Edge、Brave 或 Helium 后重试。"
         case let .permissionDenied(message):
