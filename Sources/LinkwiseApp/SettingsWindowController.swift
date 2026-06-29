@@ -6,9 +6,9 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     private let addBrowserMenuValue = "__add_browser__"
     private let contentWidth: CGFloat = 356
     private let serverField = NSTextField()
-    private let tokenField = NSSecureTextField()
+    private let tokenField = NSTextField()
     private let tokenStatusLabel = NSTextField(labelWithString: "")
-    private let removeTokenButton = NSButton(title: "移除", target: nil, action: nil)
+    private let tokenActionButton = NSButton(title: "保存", target: nil, action: nil)
     private let refreshCheckbox = NSButton(checkboxWithTitle: "启动时自动刷新书签", target: nil, action: nil)
     private let browserPopup = NSPopUpButton()
 
@@ -63,17 +63,17 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
 
         tokenField.delegate = self
         tokenField.target = self
-        tokenField.action = #selector(saveValues)
+        tokenField.action = #selector(saveAppToken)
         tokenField.placeholderString = "lwapp_..."
 
-        removeTokenButton.target = self
-        removeTokenButton.action = #selector(removeAppToken)
+        tokenActionButton.target = self
+        tokenActionButton.action = #selector(tokenAction)
 
         let tokenStack = NSStackView()
         tokenStack.orientation = .vertical
         tokenStack.spacing = 6
         tokenStack.alignment = .leading
-        tokenStack.addArrangedSubview(horizontalRow([tokenField, removeTokenButton]))
+        tokenStack.addArrangedSubview(horizontalRow([tokenField, tokenActionButton]))
         tokenStack.addArrangedSubview(tokenStatusLabel)
         stack.addArrangedSubview(labeledRow(title: "App Token", view: tokenStack))
 
@@ -129,19 +129,21 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
 
     private func loadValues() {
         serverField.stringValue = model.settingsStore.serverURL
-        tokenField.stringValue = ""
-        updateTokenStatus()
+        refreshTokenControls()
         refreshCheckbox.state = model.settingsStore.refreshOnLaunch ? .on : .off
         reloadBrowserPopup()
     }
 
-    private func updateTokenStatus() {
-        if let prefix = model.appTokenPrefix {
-            tokenStatusLabel.stringValue = "已保存 \(prefix)..."
-            removeTokenButton.isEnabled = true
+    private func refreshTokenControls() {
+        if let token = model.appTokenDisplayValue {
+            tokenField.stringValue = token
+            tokenStatusLabel.stringValue = "已配对"
+            tokenActionButton.title = "移除"
+            tokenActionButton.isEnabled = true
         } else {
             tokenStatusLabel.stringValue = "未配对"
-            removeTokenButton.isEnabled = false
+            tokenActionButton.title = "保存"
+            tokenActionButton.isEnabled = !tokenField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
     }
 
@@ -179,20 +181,21 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         model.settingsStore.serverURL = serverField.stringValue
         model.settingsStore.refreshOnLaunch = refreshCheckbox.state == .on
         model.settingsStore.defaultBrowserBundleID = selectedBrowser
-        do {
-            if try model.saveAppTokenIfPresent(tokenField.stringValue) {
-                tokenField.stringValue = ""
-            }
-            updateTokenStatus()
-        } catch {
-            AlertPresenter.show(error)
-            window?.makeFirstResponder(tokenField)
-            return
-        }
         model.notifyChange()
     }
 
+    func controlTextDidChange(_ obj: Notification) {
+        if obj.object as? NSTextField === tokenField {
+            refreshTokenControls()
+        }
+    }
+
     func controlTextDidEndEditing(_ obj: Notification) {
+        if obj.object as? NSTextField === tokenField {
+            refreshTokenControls()
+            return
+        }
+
         saveValues()
     }
 
@@ -206,11 +209,32 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         reloadBrowserPopup()
     }
 
-    @objc private func removeAppToken() {
+    @objc private func tokenAction() {
+        if model.hasAppToken {
+            removeAppToken()
+        } else {
+            saveAppToken()
+        }
+    }
+
+    @objc private func saveAppToken() {
+        do {
+            guard try model.saveAppTokenIfPresent(tokenField.stringValue) else {
+                refreshTokenControls()
+                return
+            }
+            refreshTokenControls()
+        } catch {
+            AlertPresenter.show(error)
+            window?.makeFirstResponder(tokenField)
+        }
+    }
+
+    private func removeAppToken() {
         do {
             try model.deleteAppToken()
             tokenField.stringValue = ""
-            updateTokenStatus()
+            refreshTokenControls()
         } catch {
             AlertPresenter.show(error)
         }

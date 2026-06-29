@@ -82,6 +82,14 @@ final class AppModel {
         return String(token.prefix(16))
     }
 
+    var appTokenDisplayValue: String? {
+        guard let token = try? appTokenStore.loadToken(), !token.isEmpty else {
+            return nil
+        }
+
+        return token
+    }
+
     @discardableResult
     func saveAppTokenIfPresent(_ rawToken: String) throws -> Bool {
         let token = rawToken.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -74,6 +74,7 @@ final class AppModelTests: XCTestCase {
         XCTAssertTrue(saved)
         XCTAssertEqual(try tokenStore.loadToken(), "lwapp_secret")
         XCTAssertEqual(model.appTokenPrefix, "lwapp_secret")
+        XCTAssertEqual(model.appTokenDisplayValue, "lwapp_secret")
         XCTAssertEqual(model.writeAuthState, .paired)
     }
 
