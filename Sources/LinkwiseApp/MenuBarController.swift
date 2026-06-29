@@ -54,8 +54,11 @@ final class MenuBarController {
             menu.addItem(errorItem)
         }
 
-        menu.addItem(.separator())
-        menu.addItem(actionItem("保存当前页面", selector: #selector(saveCurrentPage), key: "s"))
+        if model.hasAppToken {
+            menu.addItem(.separator())
+            menu.addItem(actionItem("保存当前页面", selector: #selector(saveCurrentPage), key: "s"))
+        }
+
         menu.addItem(.separator())
 
         addBookmarkItems(to: menu)
@@ -281,6 +284,10 @@ final class MenuBarController {
         }
 
         return model.browsers.first { $0.bundleIdentifier == bundleID }
+    }
+
+    var menuItemTitlesForTesting: [String] {
+        statusItem.menu?.items.map(\.title) ?? []
     }
 }
 
