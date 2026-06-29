@@ -8,6 +8,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
     private let serverField = NSTextField()
     private let tokenField = NSTextField()
     private let tokenStatusLabel = NSTextField(labelWithString: "")
+    private let tokenTitleRow = NSStackView()
     private let tokenActionButton = NSButton(title: "保存", target: nil, action: nil)
     private let refreshCheckbox = NSButton(checkboxWithTitle: "启动时自动刷新书签", target: nil, action: nil)
     private let browserPopup = NSPopUpButton()
@@ -65,6 +66,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         tokenField.target = self
         tokenField.action = #selector(saveAppToken)
         tokenField.placeholderString = "lwapp_..."
+        configureSingleLine(tokenField)
 
         tokenActionButton.target = self
         tokenActionButton.action = #selector(tokenAction)
@@ -74,8 +76,7 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         tokenStack.spacing = 6
         tokenStack.alignment = .leading
         tokenStack.addArrangedSubview(horizontalRow([tokenField, tokenActionButton]))
-        tokenStack.addArrangedSubview(tokenStatusLabel)
-        stack.addArrangedSubview(labeledRow(title: "App Token", view: tokenStack))
+        stack.addArrangedSubview(tokenLabeledRow(view: tokenStack))
 
         refreshCheckbox.target = self
         refreshCheckbox.action = #selector(saveValues)
@@ -105,6 +106,40 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         view.widthAnchor.constraint(equalToConstant: contentWidth).isActive = true
 
         return row
+    }
+
+    private func tokenLabeledRow(view: NSView) -> NSStackView {
+        let row = NSStackView()
+        row.orientation = .vertical
+        row.spacing = 6
+        row.alignment = .leading
+
+        tokenTitleRow.orientation = .horizontal
+        tokenTitleRow.spacing = 8
+        tokenTitleRow.alignment = .firstBaseline
+
+        let label = NSTextField(labelWithString: "App Token")
+        tokenStatusLabel.textColor = .secondaryLabelColor
+        tokenTitleRow.addArrangedSubview(label)
+        tokenTitleRow.addArrangedSubview(tokenStatusLabel)
+
+        row.addArrangedSubview(tokenTitleRow)
+        row.addArrangedSubview(view)
+        view.widthAnchor.constraint(equalToConstant: contentWidth).isActive = true
+
+        return row
+    }
+
+    private func configureSingleLine(_ field: NSTextField) {
+        field.usesSingleLineMode = true
+        field.lineBreakMode = .byTruncatingMiddle
+
+        if let cell = field.cell as? NSTextFieldCell {
+            cell.usesSingleLineMode = true
+            cell.wraps = false
+            cell.isScrollable = true
+            cell.lineBreakMode = .byTruncatingMiddle
+        }
     }
 
     private func horizontalRow(_ views: [NSView]) -> NSStackView {
@@ -258,5 +293,17 @@ final class SettingsWindowController: NSWindowController, NSTextFieldDelegate {
         }
 
         reloadBrowserPopup()
+    }
+
+    var tokenStatusIsInTitleRowForTesting: Bool {
+        tokenStatusLabel.superview === tokenTitleRow
+    }
+
+    var tokenFieldUsesSingleLineModeForTesting: Bool {
+        tokenField.usesSingleLineMode && ((tokenField.cell as? NSTextFieldCell)?.usesSingleLineMode ?? false)
+    }
+
+    var tokenFieldWrapsForTesting: Bool {
+        (tokenField.cell as? NSTextFieldCell)?.wraps ?? true
     }
 }
