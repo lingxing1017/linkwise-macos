@@ -48,7 +48,12 @@ final class AppTokenStoreTests: XCTestCase {
             return
         }
 
-        if message.localizedCaseInsensitiveContains("keychain") || message.contains("钥匙串") {
+        if message.localizedCaseInsensitiveContains("keychain") ||
+            message.localizedCaseInsensitiveContains("entitlement") ||
+            message.localizedCaseInsensitiveContains("authorization") ||
+            message.localizedCaseInsensitiveContains("not authorized") ||
+            message.contains("钥匙串") ||
+            message.contains("授权") {
             throw XCTSkip("Keychain is unavailable in this test environment: \(message)")
         }
     }
